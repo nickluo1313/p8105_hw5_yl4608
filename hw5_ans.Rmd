@@ -179,6 +179,56 @@ At the start of the experiment, both groups are having similar values. For the e
 
 When designing an experiment or analysis, a common question is whether it is likely that a true effect will be detected – put differently, whether a false null hypothesis will be rejected. The probability that a false null hypothesis is rejected is referred to as power, and it depends on several factors, including: the sample size; the effect size; and the error variance. In this problem, you will conduct a simulation to explore power in a one-sample t-test.
 
+First set the following design elements:
+
+Fix n=30
+Fix σ=5
+Set μ=0
+Generate 5000 datasets from the model
+
+For each dataset, save μ̂
+ and the p-value arising from a test of H:μ=0
+ using α=0.05
+. Hint: to obtain the estimate and p-value, use broom::tidy to clean the output of t.test.
+
+```{r}
+
+set.seed(1)
+
+n = 30
+sigma = 5
+mu = 0
+
+gen_norm = function(n, mu, sigma){
+  tibble(
+      rnorm(n = n, mean = mu, sd = sigma)
+  )
+}
+
+resnorm_df = vector("list", 5000) 
+for (i in 1:5000) {
+     resnorm_df[i] = gen_norm(n, mu, sigma)
+}
+
+# compute mean and pvals
+mu_pval = function(x){
+  mean_x = t.test(x)$estimate
+  pval_x = t.test(x)$p.value
+  
+  tibble(
+    mean = mean_x,
+    pval = pval_x
+  )
+}
+
+# save mu and pval for each dataset
+resnorm_mupval = map(resnorm_df, mu_pval)
+
+```
+
+
+
+
 
 
 
