@@ -1,0 +1,95 @@
+---
+title: "hw5"
+author: "Yutian Luo"
+date: "11/10/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+```
+
+# `Problem 1`
+
+The Washington Post has gathered data on homicides in 50 large U.S. cities and made the data available through a GitHub repository here. You can read their accompanying article here.
+
+```{r read homi data}
+
+homi_data = 
+  read.csv(file = "./data/homicide-data.csv")
+
+```
+
+
+Describe the raw data. Create a city_state variable (e.g. “Baltimore, MD”) and then summarize within cities to obtain the total number of homicides and the number of unsolved homicides (those for which the disposition is “Closed without arrest” or “Open/No arrest”).
+
+A:
+
+The dataset has `r ncol(homi_data)` variables and `r nrow(homi_data)` rows. The importat variables include `r names(homi_data)`. 
+
+
+```{r summarise homi data to homi_city}
+
+# create city_state var
+homi_data = 
+  homi_data %>% 
+  mutate(
+    city_state = paste(city, ",",  state)
+  ) 
+
+# summaries
+df1 = 
+  homi_data %>% 
+  group_by(city_state) %>% 
+  summarise(total_homi = n())%>%
+  arrange(desc(total_homi))
+
+df2 = 
+  homi_data %>% 
+  filter(disposition %in%  c("Closed without arrest", "Open/No arrest")) %>% 
+  group_by(city_state) %>% 
+  summarise(num_unsolved = n()) %>% 
+  arrange(desc(num_unsolved))
+
+homi_city = 
+full_join(df1, df2, by = "city_state")
+
+```
+
+
+For the city of Baltimore, MD, use the prop.test function to estimate the proportion of homicides that are unsolved; save the output of prop.test as an R object, apply the broom::tidy to this object and pull the estimated proportion and confidence intervals from the resulting tidy dataframe.
+
+```{r ?????}
+
+dfa =
+homi_city %>% 
+  filter(city_state ==  "Baltimore , MD")
+# 
+#   prop.test(dfa, x=dfa[[3]], n=dfa[[2]], p = dfa[[3]]/dfa[[2]], alternative = "less")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
