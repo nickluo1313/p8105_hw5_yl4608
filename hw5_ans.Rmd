@@ -61,17 +61,123 @@ full_join(df1, df2, by = "city_state")
 
 For the city of Baltimore, MD, use the prop.test function to estimate the proportion of homicides that are unsolved; save the output of prop.test as an R object, apply the broom::tidy to this object and pull the estimated proportion and confidence intervals from the resulting tidy dataframe.
 
-```{r ?????}
+```{r baltimore}
 
-dfa =
-homi_city %>% 
-  filter(city_state ==  "Baltimore , MD")
-# 
-#   prop.test(dfa, x=dfa[[3]], n=dfa[[2]], p = dfa[[3]]/dfa[[2]], alternative = "less")
+df_bal =
+  homi_city %>% 
+  filter(city_state ==  "Baltimore , MD") 
+
+# store baltimore in tibble
+lis_col_bal = 
+  tibble(
+    total = df_bal[[2]],
+    unsolve = df_bal[[3]]
+  )
+
+# prop test
+lis_col_balprop = 
+      prop.test(x=lis_col_bal$unsolve, 
+            n=lis_col_bal$total, 
+            p = 0.5, 
+            alternative = "two.sided", 
+            conf.level = 0.95, 
+            correct = TRUE) %>% 
+      broom::tidy() 
+
+
+# pull estimator and CI
+lis_col_balprop %>% pull(estimate)
+lis_col_balprop %>% pull(conf.low)
+lis_col_balprop %>% pull(conf.high)
 
 ```
 
 
+Now run prop.test for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. Do this within a “tidy” pipeline, making use of purrr::map, purrr::map2, list columns and unnest as necessary to create a tidy dataframe with estimated proportions and CIs for each city.
+
+```{r question}
+
+homi_city = 
+  homi_city %>% 
+  drop_na()
+
+lis_col_allcity = 
+  tibble(
+    total = homi_city[[2]],
+    unsolve = homi_city[[3]]
+  )
+
+# map2(.x = lis_col_allcity$unsolve, 
+#      .n = lis_col_allcity$total, 
+#      .f = prop.test(lis_col_allcity$unsolve, lis_col_allcity$total, p = 0.5, "two.sided", conf.level = 0.95))
+
+```
+
+
+
+# `Problem 2`
+
+Create a tidy dataframe containing data from all participants, including the subject ID, arm, and observations over time:
+
+Start with a dataframe containing all file names; the list.files function will help
+Iterate over file names and read in data for each subject using purrr::map and saving the result as a new variable in the dataframe
+Tidy the result; manipulate file names to include control arm and subject ID, make sure weekly observations are “tidy”, and do any other tidying that’s necessary
+
+```{r read exp_data, include = FALSE}
+
+# info for directions and file names
+exp_df = 
+  tibble(
+    dir_base = "./data/data_2",
+    filenames = list.files("./data/data_2"),
+    dir_file = str_c(dir_base, sep = "/", filenames),
+    res = vector("list", 20)
+  ) %>% 
+ 
+# read csv by map   
+  mutate(
+    exp = purrr::map(.x = dir_file, ~read_csv(file = .x))
+  ) %>% 
+  select(exp) %>% 
+  unnest()
+
+# tidy df, create vars necesary
+exp_df = 
+  exp_df %>% 
+  mutate(
+    subject_id = 1:20,
+    con_arm = ifelse(subject_id == c(1:10), TRUE, FALSE)
+  ) %>% 
+  relocate(subject_id, con_arm)
+
+```
+
+Make a spaghetti plot showing observations on each subject over time, and comment on differences between groups.
+
+```{r spaghetti plot}
+
+exp_plot = 
+  exp_df %>% 
+  pivot_longer(
+    cols = week_1:week_8,
+    names_to = "weeks",
+    values_to = "vals"
+  ) %>% 
+
+  ggplot(aes(x = weeks, y = vals, group = subject_id, color = con_arm)) +
+  geom_line()
+
+exp_plot
+```
+
+A:
+
+At the start of the experiment, both groups are having similar values. For the experimental arm, as week time progress, the values are rising faster than the control arm. The experimental arm remains in a stable value inetrval during the 8 weeks.
+
+
+# Problem 3
+
+When designing an experiment or analysis, a common question is whether it is likely that a true effect will be detected – put differently, whether a false null hypothesis will be rejected. The probability that a false null hypothesis is rejected is referred to as power, and it depends on several factors, including: the sample size; the effect size; and the error variance. In this problem, you will conduct a simulation to explore power in a one-sample t-test.
 
 
 
