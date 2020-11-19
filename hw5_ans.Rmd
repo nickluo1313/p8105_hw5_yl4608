@@ -347,8 +347,10 @@ sim_res =
   unnest(estimate_df)
 ```
 
-Make a plot showing the proportion of times the null was rejected (the power of the test) on the y axis and the true value of μ
- on the x axis. 
+
+### plot 1: power and true mu size
+
+Make a plot showing the proportion of times the null was rejected (the power of the test) on the y axis and the true value of μ on the x axis. 
 
 ```{r}
 
@@ -368,21 +370,34 @@ sim_res_plot_1
 
 ```
 
+Q:
 
  Describe the association between effect size and power.
+ 
+ A:
+ 
+ The power increaeses while true value of mu increases, however, it has a decreasing marginal increase as the effect size gets larger.
+ 
+ 
+ 
+### plot 2: avg estimate mu
+
 Make a plot showing the average estimate of μ̂
  on the y axis and the true value of μ
  on the x axis. 
  
 ```{r}
 
-sim_res_plot_2 =
+sim_res_plot_2_df =
   sim_res %>%
   group_by(mu) %>%
   summarise(avg_estimate = mean(estimate))  %>%
-  transform(mu = as.factor(mu)) %>% 
+  transform(mu = as.factor(mu)) 
+  
+sim_res_plot_2 =
+  sim_res_plot_2_df %>% 
   ggplot(aes(mu, avg_estimate)) +
-  geom_point(stat='identity') +
+  geom_point(stat = 'identity') +
   ylab("average estimate of mu hat" ) +
   xlab("true value of mu")
 
@@ -396,24 +411,45 @@ sim_res_plot_2
  
 ```{r}
 
-sim_results_plot_3 =
+sim_res_plot_3_df =
   sim_res %>%
   filter(p.value < 0.05) %>%
   group_by(mu) %>%
   summarise(avg_estimate = mean(estimate)) %>%
-  transform(mu = as.factor(mu)) %>% 
+  transform(mu = as.factor(mu)) 
+  
+sim_res_plot_3=
+  sim_res_plot_3_df %>% 
   ggplot(aes(mu, avg_estimate)) +
   geom_point(stat='identity') +
   ylab("average estimate of mu hat" ) +
   xlab("true value of mu")
 
-sim_results_plot_3
+sim_res_plot_3
 ```
  
+ 
+```{r}
+# overlay
+
+ggplot()+
+    geom_point(data = sim_res_plot_2_df, 
+             aes(mu, avg_estimate, color = "Estimated mean")) +
+    geom_point(data = sim_res_plot_3_df, 
+             aes(mu, avg_estimate, color = "Null rejected mean")) +
+  ylab("average estimate mean" ) +
+  xlab("true mean")
+
+```
+ 
+Q:
 
 Is the sample average of μ̂ across tests for which the null is rejected approximately equal to the true value of μ? Why or why not?
 
 
+A:
+
+As the true mean increases, the sample avg mu hat approximate to the true mean. As we raise the effect size, the power of will increase.
 
 
 
