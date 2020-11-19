@@ -2,13 +2,24 @@
 title: "hw5"
 author: "Yutian Luo"
 date: "11/10/2020"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
+
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_colour_discrete = scale_color_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+set.seed(123)
 ```
 
 # `Problem 1`
@@ -97,22 +108,77 @@ Now run prop.test for each of the cities in your dataset, and extract both the p
 
 ```{r question}
 
-homi_city = 
-  homi_city %>% 
-  drop_na()
-
 lis_col_allcity = 
   tibble(
     total = homi_city[[2]],
     unsolve = homi_city[[3]]
   )
 
-# map2(.x = lis_col_allcity$unsolve, 
-#      .n = lis_col_allcity$total, 
-#      .f = prop.test(lis_col_allcity$unsolve, lis_col_allcity$total, p = 0.5, "two.sided", conf.level = 0.95))
+# purrr::map2(.x = lis_col_allcity$unsolve,
+#      .y = lis_col_allcity$total,
+#      ~ prop.test(.x, .y))
 
 ```
 
+
+
+Answer:
+
+```{r}
+homicide_df =
+  read_csv("./data/homicide-data.csv") %>%
+  mutate(
+    city_state = str_c(city, state, sep = "_"),
+    resolved = case_when(
+      disposition == "Closed without arrest" ~ "unsolved",
+      disposition == "Open/No arrest" ~ "unsolved",
+      disposition == "Closed by arrest" ~ "solved",
+    )
+  ) %>%
+  select(city_state, resolved) %>%
+  filter(city_state != "Tulsa_AL")
+```
+
+
+```{r}
+aggregate_df =
+  homicide_df %>%
+  group_by(city_state) %>%
+  summarise(
+    hom_total = n(),
+    hom_unsolved = sum(resolved == "unsolved")
+  )
+```
+
+
+```{r}
+prop.test(
+  aggregate_df %>% filter(city_state == "Baltimore_MD") %>% pull(hom_unsolved),
+  aggregate_df %>% filter(city_state == "Baltimore_MD") %>% pull(hom_total)) %>%
+  broom:: tidy()
+```
+
+```{r}
+results_df = 
+  aggregate_df %>%
+  mutate(
+    prop_tests = map2(.x = hom_unsolved, .y = hom_total, ~prop.test(x = .x, n = .y)),
+    tidy_tests = map(.x = prop_tests, ~broom::tidy(.x))
+  ) %>%
+  select(-prop_tests) %>%
+  unnest(tidy_tests) %>%
+  select(city_state, estimate, conf.low, conf.high)
+```
+
+
+```{r}
+results_df %>%
+  mutate(city_state = fct_reorder(city_state,estimate)) %>%
+  ggplot(aes(x = city_state, y =estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
+  theme(axis.text.x = element_text(angle =90, vjust = 0.5, hjust = 1))
+```
 
 
 # `Problem 2`
@@ -227,6 +293,125 @@ resnorm_mupval = map(resnorm_df, mu_pval)
 ```
 
 
+Repeat the above for μ={1,2,3,4,5,6}, and complete the following:
+
+```{r}
+
+# mu_list = 
+#   list(
+#     "mu_0" = 0,
+#     "mu_1" = 1,
+#     "mu_2" = 2,
+#     "mu_3" = 3,
+#     "mu_4" = 4,
+#     "mu_5" = 5,
+#     "mu_6" = 6
+#   )
+# 
+# res_mu_all_df = vector("list", length = 7)
+# 
+# for(i in 1:7){
+#   res_mu_all_df[[i]] = purrr::rerun(5000, gen_norm(n, mu_list[[i]], sigma))
+# }
+# 
+# #??????????????????????????????
+# for(i in 1:7){
+#   res_mu_all_df[[i]] = mu_pval(res_mu_all_df[[i]])
+# }
+
+```
+
+
+```{r}
+
+# function for t test
+sim_t_test = function(mu , n = 30, sd = 5) {
+  sim_data = 
+    tibble(
+      broom::tidy(t.test(rnorm(n = n, mean = mu, sd = sd)))
+    ) %>%
+    select(c(estimate, p.value))
+  sim_data
+}
+
+# result df for mu(0...6)
+sim_res = 
+  tibble(
+    mu = c(0,1,2,3,4,5,6)
+  ) %>% 
+  mutate(
+    output_lists = map(.x = mu, ~ rerun(5000, sim_t_test(.x))),
+    estimate_df = map(output_lists, bind_rows)
+  ) %>% 
+  select(-output_lists) %>% 
+  unnest(estimate_df)
+```
+
+Make a plot showing the proportion of times the null was rejected (the power of the test) on the y axis and the true value of μ
+ on the x axis. 
+
+```{r}
+
+# ggplot 
+sim_res_plot_1 =
+  sim_res %>%
+  filter(p.value < 0.05) %>%
+  group_by(mu) %>%
+  summarise(power = n()/5000) %>%
+  transform(mu = as.factor(mu)) %>%
+  ggplot(aes(mu, power)) +
+  geom_bar(stat='identity') +
+  ylab("the power of the test" ) +
+  xlab("true value of mu")
+
+sim_res_plot_1
+
+```
+
+
+ Describe the association between effect size and power.
+Make a plot showing the average estimate of μ̂
+ on the y axis and the true value of μ
+ on the x axis. 
+ 
+```{r}
+
+sim_res_plot_2 =
+  sim_res %>%
+  group_by(mu) %>%
+  summarise(avg_estimate = mean(estimate))  %>%
+  transform(mu = as.factor(mu)) %>% 
+  ggplot(aes(mu, avg_estimate)) +
+  geom_point(stat='identity') +
+  ylab("average estimate of mu hat" ) +
+  xlab("true value of mu")
+
+sim_res_plot_2
+```
+ 
+ 
+ Make a second plot (or overlay on the first) the average estimate of μ̂
+ only in samples for which the null was rejected on the y axis and the true value of μ on the x axis.
+ 
+ 
+```{r}
+
+sim_results_plot_3 =
+  sim_res %>%
+  filter(p.value < 0.05) %>%
+  group_by(mu) %>%
+  summarise(avg_estimate = mean(estimate)) %>%
+  transform(mu = as.factor(mu)) %>% 
+  ggplot(aes(mu, avg_estimate)) +
+  geom_point(stat='identity') +
+  ylab("average estimate of mu hat" ) +
+  xlab("true value of mu")
+
+sim_results_plot_3
+```
+ 
+
+Is the sample average of μ̂ across tests for which the null is rejected approximately equal to the true value of μ? Why or why not?
 
 
 
